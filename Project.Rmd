@@ -1,0 +1,852 @@
+---
+title: "Analyzing Factors Influencing GDP"
+# author: "Inshal Khan"
+# date: "November 23, 2019"
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout: scroll
+    theme: yeti
+    orientation: rows
+---
+
+``` {js}
+// Inverse color of navigation bar.
+$('.navbar-inverse').removeClass('navbar-inverse').addClass('navbar-default');
+```
+
+```{r setup, include=FALSE}
+library(flexdashboard) # Dashboard package
+library(highcharter) # Interactive data visualizations
+library(plotly) # Interactive data visualizations
+library(viridis) # Color gradients
+library(tidyverse) # Metapackge
+library(countrycode) # Converts country names/codes
+library(rjson) # JSON reader
+library(crosstalk) # Provides interactivity for HTML widgets
+library(DT) # Displaying data tables
+library(plyr)
+library(treemap) #For Treemap
+library(viridisLite)#For color maps in R
+```
+
+```{r include=FALSE}
+data <- read.csv('CIA Factsheet 2013.csv')
+names(data)[names(data) == 'Countries'] <- 'country'
+data <-filter(data, country != 'American Samoa',country != 'Andorra', country !='Anguilla', country != 'Antigua and Barbuda', country != 'Aruba',country != 'Bahrain' , country != 'Barbados',country != 'British Virgin Islands',country != 'Cape Verde', country !='Cayman Islands' ,country != 'Comoros',country != 'Cook Islands', country != 'Dominica',country != 'Faroe Islands',country != 'French Polynesia', country !='Gibraltar', country !='Grenada',country != 'Guam', country != 'Guernsey', country != 'Hong Kong', country !='Isle of Man',country != 'Jersey', country !='Kiribati', country !='Liechtenstein',country != 'Macau', country !='Maldives', country != 'Marshall Islands',country != 'Mauritius',country !=  'Micronesia',country != 'Monaco', country !='Montserrat',country != 'Nauru', country != 'Northern Mariana Islands',country != 'Palau', country != 'Saint Helena', country != 'Saint Kitts and Nevis',country != 'Saint Lucia', country != 'Saint Pierre and Miquelon', country != 'Saint Vincent and the Grenadines', country != 'Samoa', country != 'San Marino', country != 'Sao Tome and Principe', country != 'Seychelles', country != 'Singapore', country != 'Sint Maarten', country != 'Tonga', country != 'Turks and Caicos Islands', country != 'Tuvalu', country != 'Virgin Islands', country != 'Wallis and Futuna')
+
+data$country <- revalue(data$country, c("Bahamas" = "The Bahamas","Burma" = "Myanmar","Congo, Democratic Republic of the" = "Democratic Republic of the Congo","Congo, Republic of the" = "Republic of the Congo","Cote d'Ivoire" = "Ivory Coast","Guinea-Bissau" = "Guinea Bissau", "United States" = "United States of America", "Tanzania" = "United Republic of Tanzania"))
+```
+
+```{r include=FALSE}
+# Create a custom theme for the plots. 
+custom_theme <- hc_theme(
+  colors = c('#5CACEE', 'green', 'red'),
+  chart = list(
+         backgroundColor = '#FAFAFA', 
+         plotBorderColor = "black"),
+  xAxis = list(
+         gridLineColor = "E5E5E5", 
+         labels = list(style = list(color = "#333333")), 
+         lineColor = "#E5E5E5", 
+         minorGridLineColor = "#E5E5E5", 
+         tickColor = "#E5E5E5", 
+         title = list(style = list(color = "#333333"))), 
+  yAxis = list(
+         gridLineColor = "#E5E5E5", 
+         labels = list(style = list(color = "#333333")), 
+         lineColor = "#E5E5E5", 
+         minorGridLineColor = "#E5E5E5", 
+         tickColor = "#E5E5E5", 
+         tickWidth = 1, 
+         title = list(style = list(color = "#333333"))),   
+  title = list(style = list(color = '#333333', fontFamily = "Lato")),
+  subtitle = list(style = list(color = '#666666', fontFamily = "Lato")),
+  legend = list(
+         itemStyle = list(color = "#333333"), 
+         itemHoverStyle = list(color = "#FFF"), 
+         itemHiddenStyle = list(color = "#606063")), 
+  credits = list(style = list(color = "#666")),
+  itemHoverStyle = list(color = 'gray'))
+```
+
+<style>
+.colored {
+  background-color: #FAFAFA;
+}
+</style>
+
+GDP
+=======================================================================
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+### World Map by GDP.PPP
+```{r fig.height=3.5}
+# Create a tibble with country and GDP
+country_tibble <- data %>%
+  select(country, GDP.PPP, Population)
+
+# Create interactive world map.
+highchart() %>%
+  hc_add_series_map(worldgeojson, country_tibble, value = "GDP.PPP", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_title(text = "GDP by Country") %>% 
+  hc_subtitle(text = "Countries by GDP PPP") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = " GDP PPP") %>% 
+  hc_add_theme(custom_theme)
+
+```
+
+### World Map by GDP Per Capita
+```{r fig.height=3.5}
+# Create a tibble with country and GDP
+country_tibble_G <- data %>%
+  select(country, GDP.PPP.Per.Capita...., Population)
+
+# Create interactive world map.
+highchart() %>%
+  hc_add_series_map(worldgeojson, country_tibble_G, value = "GDP.PPP.Per.Capita....", joinBy = c('name','country')) %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_title(text = "GDP Per Capita by Country") %>% 
+  hc_subtitle(text = "Countries by GDP Per Capita") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = " GDP Capita") %>% 
+  hc_add_theme(custom_theme)
+```
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Barplot
+```{r fig.height=3.5}
+# Create tibble for country bar
+country_bar <- data %>%
+  select(country, GDP.PPP, Population) %>%
+  group_by(country) %>%
+  arrange(desc(GDP.PPP))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(country_bar, hcaes(x = country, y = GDP.PPP, color = GDP.PPP), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste("GDP: <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "GDP by country") %>% 
+  hc_xAxis(categories = country_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "GDP by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+
+```
+
+
+### Treemap
+```{r fig.height=3.5}
+#Creating Treemap
+hctreemap2(data = data,
+           group_vars = "country",
+           size_var = "GDP.PPP",
+           color_var = "GDP.PPP",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+                            Pop: {point.value:,.0f}<br>
+                            GDP: {point.valuecolor:,.0f}")
+```
+
+
+Continent
+=======================================================================
+Row {data-height=650}
+-----------------------------------------------------------------------
+### Continent Map by GDP
+```{r fig.height=3.5}
+
+map_data <- download_map_data("custom/world-continents")
+
+# Create a tibble for continent.
+continent_tibble <- data %>%
+  select(Continent, GDP.PPP) %>%
+  group_by(Continent) 
+
+# Create continent map with suicide data. 
+highchart() %>%
+  hc_add_series_map(map_data, continent_tibble, value = "GDP.PPP", joinBy = c('name','Continent'), name = "GDP by Continent")  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_title(text = "GDP by Continent") %>%
+  hc_subtitle(text= "GDP PPP of Continents") %>%
+  hc_tooltip(borderWidth = 1.5,headerFormat = "", valueSuffix = '') %>%
+  hc_add_theme(custom_theme)
+
+```
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Africa
+```{r fig.height=3.5}
+hcmap(map = "custom/africa",
+      download_map_data = getOption("highcharter.download_map_data"),
+      data = data, value = "GDP.PPP", joinBy = c('name','country'))
+```
+
+### Asia
+```{r fig.height=3.5}
+hcmap(map = "custom/asia",
+      download_map_data = getOption("highcharter.download_map_data"),
+      data = data, value = "GDP.PPP", joinBy = c('name','country'))
+```
+
+### Europe
+```{r fig.height=3.5}
+hcmap(map = "custom/europe",
+      download_map_data = getOption("highcharter.download_map_data"),
+      data = data, value = "GDP.PPP", joinBy = c('name','country'))
+```
+
+### North America
+```{r fig.height=3.5}
+hcmap(map = "custom/north-america",
+      download_map_data = getOption("highcharter.download_map_data"),
+      data = data, value = "GDP.PPP", joinBy = c('name','country'))
+```
+
+### Oceania
+```{r fig.height=3.5}
+hcmap(map = "custom/oceania",
+      download_map_data = getOption("highcharter.download_map_data"),
+      data = data, value = "GDP.PPP", joinBy = c('name','country'))
+```
+
+### South America
+```{r fig.height=3.5}
+hcmap(map = "custom/south-america",
+      download_map_data = getOption("highcharter.download_map_data"),
+      data = data, value = "GDP.PPP", joinBy = c('name','country'))
+```
+
+
+Population
+=======================================================================
+Row {data-height=650}
+-----------------------------------------------------------------------
+### World Map by Population
+```{r fig.height=3.5}
+# Create a tibble with country and GDP
+country_tibble <- data %>%
+  select(country, GDP.PPP, Population)
+
+# Create interactive world map.
+highchart() %>%
+  hc_add_series_map(worldgeojson, country_tibble, value = "Population", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_title(text = "Population by Country") %>% 
+  hc_subtitle(text = "Countries by Population") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "Population") %>% 
+  hc_add_theme(custom_theme)
+
+```
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Barplot
+```{r fig.height=3.5}
+# Create tibble for country bar
+country_bar <- data %>%
+  select(country, GDP.PPP, Population) %>%
+  group_by(country) %>%
+  arrange(desc(Population))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(country_bar, hcaes(x = country, y = Population, color = Population), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste("Population: <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Population by country") %>% 
+  hc_xAxis(categories = country_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Population by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+```
+
+
+### Treemap Asia
+```{r fig.height=3.5}
+#Creating Treemap
+Treemap_Asia <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Asia") %>%
+  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Asia,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap Africa
+```{r fig.height=3.5}
+#Creating Treemap
+Treemap_Africa <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Africa") %>%
+  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Africa,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap Europe
+```{r fig.height=3.5}
+#Creating Treemap
+Treemap_Europe <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Europe") %>%
+  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Europe,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap Oceania
+```{r fig.height=3.5}
+#Creating Treemap
+Treemap_Oceania <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Oceania") %>%
+  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Oceania,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap North America
+```{r fig.height=3.5}
+#Creating Treemap
+Treemap_NA <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="North America") %>%
+  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_NA,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap South America
+```{r fig.height=3.5}
+#Creating Treemap
+Treemap_SA <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="South America") %>%
+  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_SA,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+Urban
+=======================================================================
+Row {data-height=650}
+-----------------------------------------------------------------------
+###  Urban Population of countries
+```{r fig.height=3.5}
+# Create a tibble for urban population
+urban_tibble <- data %>%
+  select(country, Urban, GDP.PPP) %>%
+  #summarise(Urbanpop = Urban*100 ) %>%
+  group_by(Urban) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, urban_tibble, value = "Urban", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Urban Population by Country") %>% 
+  hc_subtitle(text = "Countries by their urban population") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "") %>% 
+  hc_add_theme(custom_theme)
+```
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Barplot
+```{r fig.height=3.5}
+# Create tibble for Urban bar
+Urban_bar <- data %>%
+  select(country, Urban, Population) %>%
+  group_by(Urban) %>%
+  arrange(desc(Urban))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(Urban_bar, hcaes(x = country, y = Urban, color = Urban), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste("Urban: <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Urban Population by Country") %>% 
+  hc_xAxis(categories = Urban_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Urban Population by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+
+```
+
+Health Expenditure as part of GDP
+=======================================================================
+Row {data-height=650}
+-----------------------------------------------------------------------
+###  Health Exprenditure of countries by GDP
+```{r fig.height=3.5}
+# Create a tibble for Health Expenditure
+Health_tibble <- data %>%
+  select(country, Health.Expenditure.as.Part.of.GDP, GDP.PPP) %>%
+  group_by(Health.Expenditure.as.Part.of.GDP) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, Health_tibble, value = "Health.Expenditure.as.Part.of.GDP", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Health Exprenditure of countries by GDP") %>% 
+  hc_subtitle(text = "Countries by their Health Exprenditure") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = " %") %>% 
+  hc_add_theme(custom_theme)
+```
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Barplot
+```{r fig.height=3.5}
+# Create tibble for Health bar
+Health_bar <- data %>%
+  select(country, Health.Expenditure.as.Part.of.GDP, Population) %>%
+  group_by(Health.Expenditure.as.Part.of.GDP) %>%
+  arrange(desc(Health.Expenditure.as.Part.of.GDP))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(Health_bar, hcaes(x = country, y = Health.Expenditure.as.Part.of.GDP, color = Health.Expenditure.as.Part.of.GDP), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste("GDP: <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "GDP by country") %>% 
+  hc_xAxis(categories = Health_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "GDP by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+
+```
+
+
+Migration Rate
+=======================================================================
+Row {data-height=650}
+-----------------------------------------------------------------------
+###  Migration Rate of countries
+
+```{r fig.height=3.5}
+# Create a tibble for Net Migration population
+migration_tibble <- data %>%
+  select(country, Net.Migration.Rate, GDP.PPP) %>%
+  group_by(Net.Migration.Rate) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, migration_tibble, value = "Net.Migration.Rate", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Migration by Country") %>% 
+  hc_subtitle(text = "Countries by their Migration  rate") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "") %>% 
+  hc_add_theme(custom_theme)
+```
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Barplot
+```{r fig.height=3.5}
+Migaration_bar <- data %>%
+  select(country,Net.Migration.Rate , Population) %>%
+  group_by(Net.Migration.Rate) %>%
+  arrange(desc(Net.Migration.Rate))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(Migaration_bar, hcaes(x = country, y = Net.Migration.Rate, color = Net.Migration.Rate), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste(": <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Migration by country") %>% 
+  hc_xAxis(categories = Migaration_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Migration by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+```
+
+Adult Obesity Rate
+=======================================================================
+Row {data-height=650}
+-----------------------------------------------------------------------
+###  Adult Obesity Rate of countries
+
+```{r fig.height=3.5}
+# Create a tibble for Adult Obesity 
+AO_tibble <- data %>%
+  select(country, Adult.Obesity.Rate, GDP.PPP) %>%
+  group_by(Adult.Obesity.Rate) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, AO_tibble, value = "Adult.Obesity.Rate", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Adult Obesity by Country") %>% 
+  hc_subtitle(text = "Countries by their Adult Obesity  rate") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "") %>% 
+  hc_add_theme(custom_theme)
+```
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Barplot
+```{r fig.height=3.5}
+AO_bar <- data %>%
+  select(country,Adult.Obesity.Rate , Population) %>%
+  group_by(Adult.Obesity.Rate) %>%
+  arrange(desc(Adult.Obesity.Rate))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(AO_bar, hcaes(x = country, y = Adult.Obesity.Rate, color = Adult.Obesity.Rate), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste(": <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Adult Obesity by country") %>% 
+  hc_xAxis(categories = Migaration_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Adult Obesity by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+```
+
+Life Expectancy
+=======================================================================
+Row {data-height=650}
+-----------------------------------------------------------------------
+###  Life Expectancy years by countries
+
+```{r fig.height=3.5}
+# Create a tibble for Life 
+L_tibble <- data %>%
+  select(country, Life.Expectancy..years., GDP.PPP) %>%
+  group_by(Life.Expectancy..years.) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, L_tibble, value = "Life.Expectancy..years.", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Life Expectancy by Country") %>% 
+  hc_subtitle(text = "Countries by their Life Expectancy") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "") %>% 
+  hc_add_theme(custom_theme)
+```
+
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Barplot
+```{r fig.height=3.5}
+L_bar <- data %>%
+  select(country,Life.Expectancy..years. , Population) %>%
+  group_by(Life.Expectancy..years.) %>%
+  arrange(desc(Life.Expectancy..years.))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(L_bar, hcaes(x = country, y = Life.Expectancy..years., color = Life.Expectancy..years.), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste(": <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Life Expectancy years by country") %>% 
+  hc_xAxis(categories = L_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Life Expectancy by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+```
+
+Sector Combination
+=======================================================================
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Agriculture
+```{r fig.height=3.5}
+# Create a tibble for Agriculture 
+Agri_tibble <- data %>%
+  select(country,Agriculture , GDP.PPP) %>%
+  group_by(Agriculture) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, Agri_tibble, value = "Agriculture", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Agriculture Sector by Country") %>% 
+  hc_subtitle(text = "Countries by their Agriculture Sector") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "%") %>% 
+  hc_add_theme(custom_theme)
+```
+
+### Barplot
+```{r fig.height=3.5}
+Agri_bar <- data %>%
+  select(country,Agriculture , Population) %>%
+  group_by(Agriculture) %>%
+  arrange(desc(Agriculture))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(Agri_bar, hcaes(x = country, y = Agriculture, color = Agriculture), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste(": <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Agriculture Sector by country") %>% 
+  hc_xAxis(categories = Agri_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Agriculture by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+```
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Service
+```{r fig.height=3.5}
+# Create a tibble for Service 
+Service_tibble <- data %>%
+  select(country,Service , GDP.PPP) %>%
+  group_by(Service) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, Service_tibble, value = "Service", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Service Sector by Country") %>% 
+  hc_subtitle(text = "Countries by their Service Sector") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "%") %>% 
+  hc_add_theme(custom_theme)
+```
+
+### Barplot
+```{r fig.height=3.5}
+Service_bar <- data %>%
+  select(country,Service , Population) %>%
+  group_by(Service) %>%
+  arrange(desc(Service))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(Service_bar, hcaes(x = country, y = Service, color = Service), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste(": <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Service Sector by country") %>% 
+  hc_xAxis(categories = Service_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Agriculture by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+```
+
+Row {.tabset .tabset-fade}
+-------------------------------------
+### Industry
+```{r fig.height=3.5}
+# Create a tibble for Industry 
+Industry_tibble <- data %>%
+  select(country,Industry , GDP.PPP) %>%
+  group_by(Industry) 
+
+highchart() %>%
+  hc_add_series_map(worldgeojson, Industry_tibble, value = "Industry", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_colorAxis(minColor = "#C5C889", maxColor = "#434348") %>% 
+  hc_title(text = "Industry Sector by Country") %>% 
+  hc_subtitle(text = "Countries by their Industry Sector") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "%") %>% 
+  hc_add_theme(custom_theme)
+```
+
+### Barplot
+```{r fig.height=3.5}
+Industry_bar <- data %>%
+  select(country,Industry , Population) %>%
+  group_by(Industry) %>%
+  arrange(desc(Industry))
+
+# Create interactive bar plot
+highchart() %>%
+  hc_add_series(Industry_bar, hcaes(x = country, y = Industry, color = Industry), type = "bar")  %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste(": <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Industry Sector by country") %>% 
+  hc_xAxis(categories = Industry_bar$country, 
+           labels = list(step = 1),
+           min = 0, max = 25,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Industry by Country")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5)) %>% 
+  hc_add_theme(custom_theme)
+```
+
+Conculsion
+=======================================================================
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+###  Coorelation Matrix
+```{r fig.height=7}
+
+#Correlation Matrix
+data.df <- data %>%
+  select_if(is.numeric) %>%
+  cor(.)
+
+hchart(cor(data.df))
+
+```
+
+###  Principal Components
+```{r fig.height=10}
+hchart(princomp(data.df, cor = TRUE))
+
+```
+
+###  Heatmap
+```{r fig.height=10}
+heatmap(data.df, Colv = NA, Rowv = NA, scale="column", main="Heatmap")
+
+```

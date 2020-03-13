@@ -1,0 +1,510 @@
+---
+title: "Coursework 3"
+author: "Dilpa Rao - 1906319"
+date: "12/12/2019"
+output:
+  html_document:
+    df_print: paged
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: yeti
+    vertical_layout: scroll
+---
+
+``` {js echo=FALSE}
+// Inverse color of navigation bar.
+$('.navbar-inverse').removeClass('navbar-inverse').addClass('navbar-default');
+```
+## Abstract
+GDP and GDP Per Capita are the two most important factors in determing the prosperity and the net worth of a country. My area was to look into how Population and Growth Rate affect the GDP and the GDP Per Capita of the different countries of the world and to prepare a group report alongwith Divya who helped me with the contents and then I made a word,pdf,html and a flex-dashboard  markdown files.<br><br>
+The Factsheet dataset taken from Kaggle consists of twenty one factors with respect to the countries in 2016. The format of the dataset is in CSV and contains information regarding the following variables :<br><br>
+Countries,Continent, Population, Area Sqare km, Growth Rate, Birth Rate,Death Rate, Net Migration Rate, Maternal Mortality Rate, Infant Mortality Rate, Life Expectancy (years), Total Fertility Rate, Adult Obesity Rate, Health Expenditure as Part of GDP, Underweight Children %, GDP PPP, GDP PPP Per Capita, Urban, Agriculture, Industry, Service.
+
+
+
+```{r setup, include=FALSE}
+library(flexdashboard) # Dashboard package
+library(highcharter) # Interactive data visualizations
+library(plotly) # Interactive data visualizations
+library(viridis) # Color gradients
+library(tidyverse) # Metapackge
+library(countrycode) # Converts country names/codes
+library(rjson) # JSON reader
+library(crosstalk) # Provides interactivity for HTML widgets
+library(DT) # Displaying data tables
+library(plyr)
+library(treemap) #For Treemap
+library(viridisLite)#For color maps in R
+
+```
+
+
+
+```{r include=FALSE}
+
+data <- read.csv('CIA Factsheet 2013.csv')
+names(data)[names(data) == 'Countries'] <- 'country'
+data <-filter(data, country != 'American Samoa',
+              country != 'Andorra', country !='Anguilla', country != 'Antigua and Barbuda', country != 'Aruba',country != 'Bahrain' , country != 'Barbados',country != 'British Virgin Islands',country != 'Cape Verde', country !='Cayman Islands' ,country != 'Comoros',country != 'Cook Islands', country != 'Dominica',country != 'Faroe Islands',country != 'French Polynesia', country !='Gibraltar', country !='Grenada',country != 'Guam', country != 'Guernsey', country != 'Hong Kong', country !='Isle of Man',country != 'Jersey', country !='Kiribati', country !='Liechtenstein',country != 'Macau', country !='Maldives', country != 'Marshall Islands',country != 'Mauritius',country !=  'Micronesia',country != 'Monaco', country !='Montserrat',country != 'Nauru', country != 'Northern Mariana Islands',country != 'Palau', country != 'Saint Helena', country != 'Saint Kitts and Nevis',country != 'Saint Lucia', country != 'Saint Pierre and Miquelon', country != 'Saint Vincent and the Grenadines', country != 'Samoa', country != 'San Marino', country != 'Sao Tome and Principe', country != 'Seychelles', country != 'Singapore', country != 'Sint Maarten', country != 'Tonga', country != 'Turks and Caicos Islands', country != 'Tuvalu', country != 'Virgin Islands', country != 'Wallis and Futuna')
+
+data$country <- revalue(data$country, c("Bahamas" = "The Bahamas","Burma" = "Myanmar","Congo, Democratic Republic of the" = "Democratic Republic of the Congo","Congo, Republic of the" = "Republic of the Congo","Cote d'Ivoire" = "Ivory Coast","Guinea-Bissau" = "Guinea Bissau", "United States" = "United States of America", "Tanzania" = "United Republic of Tanzania"))
+```
+
+
+
+
+
+## Introduction
+
+GDP is one of the most important indicator in determining the performance of a country's economy. Another important factor in determining a country's prosperity is the GDP per capita. GDP per capita is a measure of a country's economic output that accounts for its number of people. It divides the country's gross domestic product by its total population. That makes it a good measurement of a country's standard of living. It tells us how prosperous a country feels to each of its citizens.<br><br>
+The significant factors affecting GDP are population,agriculture,service,industry,health,migration,urban and obesity which are recorded in the dataset. The table and the correlation matrix below clearly shows the relationship between the various factors. The Population has a very high correlation with GDP ,as far as GDP per capita is concerned it has a negative relationship to both the population and growth rate as shown by the statistics below.
+
+
+
+
+```{r fig.height=1.5, echo=FALSE}
+
+c1<-data.frame(data[,c(3,5,16,17)])
+names(c1)[1] <- "Population"
+names(c1)[2] <- "Growth Rate"
+names(c1)[3] <- "GDP"
+names(c1)[4] <- "GDP per Capita"
+
+#cor(data[,c(3,5,16,17)])
+cor(c1)
+hchart(cor(c1))
+#ggplot(data, aes(x = Population , y = GDP.PPP)) + 
+ # geom_point()
+
+#Correlation Matrix
+#data.df <- data %>%
+#  select_if(is.numeric) %>%
+#  cor(.)
+
+```
+
+
+
+## Methods
+
+Various descriptive statistics  and mapping tools like correlation graph,world map, bar charts,treemap  to answer as many as questions related to my analysis. Given below is the world map - Population and GDP wise.
+
+
+
+```{r include=FALSE,echo=FALSE}
+# Create a custom theme for the plots. 
+custom_theme <- hc_theme(
+  colors = c('#5CACEE', 'green', 'red'),
+  chart = list(
+         backgroundColor = '#FAFAFA', 
+         plotBorderColor = "black"),
+  xAxis = list(
+         gridLineColor = "E5E5E5", 
+         labels = list(style = list(color = "#333333")), 
+         lineColor = "#E5E5E5", 
+         minorGridLineColor = "#E5E5E5", 
+         tickColor = "#E5E5E5", 
+         title = list(style = list(color = "#333333"))), 
+  yAxis = list(
+         gridLineColor = "#E5E5E5", 
+         labels = list(style = list(color = "#333333")), 
+         lineColor = "#E5E5E5", 
+         minorGridLineColor = "#E5E5E5", 
+         tickColor = "#E5E5E5", 
+         tickWidth = 1, 
+         title = list(style = list(color = "#333333"))),   
+  title = list(style = list(color = '#333333', fontFamily = "Lato")),
+  subtitle = list(style = list(color = '#666666', fontFamily = "Lato")),
+  legend = list(
+         itemStyle = list(color = "#333333"), 
+         itemHoverStyle = list(color = "#FFF"), 
+         itemHiddenStyle = list(color = "#606063")), 
+  credits = list(style = list(color = "#666")),
+  itemHoverStyle = list(color = 'gray'))
+```
+
+<style>
+.colored {
+  background-color: #FAFAFA;
+}
+</style>
+
+
+### World Map by Population
+
+
+```{r fig.height=5,echo=FALSE}
+# Create a tibble with country and GDP
+country_tibble <- data %>%
+  select(country, GDP.PPP, Population)
+
+# Create interactive world map.
+highchart() %>%
+  hc_add_series_map(worldgeojson, country_tibble, value = "Population", joinBy = c('name','country'))  %>% 
+  hc_colorAxis(stops = color_stops()) %>% 
+  hc_title(text = "Population by Country") %>% 
+  hc_subtitle(text = "Countries by Population") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = "Population") %>% 
+ 
+  hc_add_theme(custom_theme)
+
+```
+
+
+## Visualizations
+Continent wise GDP distribution
+=======================================================================
+Row{.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+
+### Treemap Asia
+```{r fig.height=5,echo= FALSE}
+#Creating Treemap
+Treemap_Asia <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Asia") %>%
+ # group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Asia,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+
+
+### Treemap Africa
+```{r fig.height=5,echo=FALSE}
+#Creating Treemap
+Treemap_Africa <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Africa") %>%
+ # group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Africa,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap Europe
+```{r fig.height=5,echo=FALSE}
+#Creating Treemap
+Treemap_Europe <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Europe") %>%
+#  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Europe,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap Oceania
+```{r fig.height=5,echo=FALSE}
+#Creating Treemap
+Treemap_Oceania <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="Oceania") %>%
+ # group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_Oceania,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap North America
+```{r fig.height=5,echo=FALSE}
+#Creating Treemap
+Treemap_NA <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="North America") %>%
+#  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_NA,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+### Treemap South America
+```{r fig.height=5,echo=FALSE}
+#Creating Treemap
+Treemap_SA <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  filter(Continent=="South America") %>%
+#  group_by(Population) %>%
+  arrange(desc(Population))
+
+hctreemap2(data = Treemap_SA,
+           group_vars = "country",
+           size_var = "Population",
+           color_var = "GDP.PPP",
+           type = "value",
+           layoutAlgorithm = "squarified",
+           levelIsConstant = FALSE,
+           levels = list(
+             list(level = 1, dataLabels = list(enabled = TRUE)),
+             list(level = 2, dataLabels = list(enabled = FALSE)),
+             list(level = 3, dataLabels = list(enabled = FALSE))
+           )) %>% 
+  hc_add_theme(custom_theme) %>% 
+  hc_tooltip(pointFormat = "<b>{point.name}</b>:<br>
+             Pop: {point.value:,.0f}<br>
+             GDP: {point.colorValue:,.0f}")
+```
+
+
+## Observations 
+
+The table below shows the top 6 countries of the world having the highest GDP. United States of America is leading followed by China, India, Japan, Germany, Russia, Brazil, United Kingdom, France, Germany while South Africa, Egypt  have very low GDP. It is observed that Brazil and United Kingdom, Saudi Arabia and Taiwan have equal GDP.<br><br>
+
+
+
+
+```{r echo=FALSE}
+
+###  Top 10 countries with the highest GDP worldwide
+
+Top10 <- data %>%
+  select(country,GDP.PPP, Population,Continent) %>%
+  group_by(country) %>%
+  arrange(desc(GDP.PPP))
+
+head(Top10)
+
+```
+
+
+## Conclusions
+
+Based on the above discusions and graphical representations it clearly shows that Population is affecting the GDP of the countries world-wide. The growth rate factor does not have any impact on the GDP or the GDP per Capita. Though, the GDP per Capita of a nation is calculated using the population, it does not have any effect on it as shown by the above graphs.<br>
+
+The correlation matrix clearly defines the relationship of all the important variables which impacts the GDP of a nation such as Population, Industry, Net Migration Rate, Service, Life Expectancy, Adult obesity and also points out the least important ones such as Infant Mortality Rate and Birth Rate.
+
+
+<br><br>
+
+## Appendix
+The following visualizations were not included in the project as they did not affected the GDP per capita. The graph below clearly represent how the GDP Per capita is independent of population.
+
+### Visualizations
+Continent-Population wise GDP Per Capita distribution
+=======================================================================
+Row{.tabset .tabset-fade}
+-----------------------------------------------------------------------
+### Asia
+```{r fig.height=3,echo=FALSE}
+#Creating highchart
+afact3<-data %>%
+  filter(Continent=="Asia")
+fact1<-afact3 %>%
+  select(Continent,country,Population,GDP.PPP,GDP.PPP.Per.Capita....) %>%
+  arrange(desc(Population))
+
+hc <- highchart() %>% 
+  hc_xAxis(categories = fact1$country) %>% 
+  hc_add_series(name = "Per Capita", data = fact1$GDP.PPP.Per.Capita....)
+
+hc <- hc %>% 
+  hc_chart(type = "column",
+           options3d = list(enabled = TRUE, beta = 15, alpha = 15))
+hc %>% hc_add_theme(hc_theme_darkunica())
+```
+
+
+### Africa
+```{r fig.height=3,echo=FALSE}
+#Creating highchart
+afact3<-data %>%
+  filter(Continent=="North America")
+
+fact1<-afact3 %>%
+  select(Continent,country,Population,GDP.PPP,GDP.PPP.Per.Capita....) %>%
+  arrange(desc(Population))
+
+hc <- highchart() %>% 
+  hc_xAxis(categories = fact1$country) %>% 
+  hc_add_series(name = "Per Capita", data = fact1$GDP.PPP.Per.Capita....)
+hc <- hc %>% 
+  hc_chart(type = "column",
+           options3d = list(enabled = TRUE, beta = 15, alpha = 15))
+hc %>% hc_add_theme(hc_theme_darkunica())
+```
+
+
+### Europe
+```{r fig.height=3,echo=FALSE}
+#Creating highchart
+afact3<-data %>%
+  filter(Continent=="Europe")
+
+fact1<-afact3 %>%
+  select(Continent,country,Population,GDP.PPP,GDP.PPP.Per.Capita....) %>%
+  arrange(desc(Population))
+
+hc <- highchart() %>% 
+  hc_xAxis(categories = fact1$country) %>% 
+  hc_add_series(name = "Per Capita", data = fact1$GDP.PPP.Per.Capita....)
+hc <- hc %>% 
+  hc_chart(type = "column",
+           options3d = list(enabled = TRUE, beta = 15, alpha = 15))
+hc %>% hc_add_theme(hc_theme_darkunica())
+```
+
+### North America
+```{r fig.height=3,echo=FALSE}
+#Creating highchart
+afact3<-data %>%
+  filter(Continent=="North America")
+
+fact1<-afact3 %>%
+  select(Continent,country,Population,GDP.PPP,GDP.PPP.Per.Capita....) %>%
+  arrange(desc(Population))
+
+hc <- highchart() %>% 
+  hc_xAxis(categories = fact1$country) %>% 
+  hc_add_series(name = "Per Capita", data = fact1$GDP.PPP.Per.Capita....)
+hc <- hc %>% 
+  hc_chart(type = "column",
+           options3d = list(enabled = TRUE, beta = 15, alpha = 15))
+hc %>% hc_add_theme(hc_theme_darkunica())
+```
+
+
+
+### South America
+```{r fig.height=3,echo=FALSE}
+#Creating highchart
+afact3<-data %>%
+  filter(Continent=="South America")
+fact1<-afact3 %>%
+  select(Continent,country,Population,GDP.PPP,GDP.PPP.Per.Capita....) %>%
+  arrange(desc(Population))
+
+hc <- highchart() %>% 
+  hc_xAxis(categories = fact1$country) %>% 
+  hc_add_series(name = "Per Capita", data = fact1$GDP.PPP.Per.Capita.... )
+
+hc <- hc %>% 
+  hc_chart(type = "column",
+           options3d = list(enabled = TRUE, beta = 15, alpha = 15))
+hc %>% hc_add_theme(hc_theme_darkunica())
+```
+
+
+
+### Oceania
+```{r fig.height=3,echo=FALSE}
+#Creating highchart
+afact3<-data %>%
+  filter(Continent=="Oceania")
+
+fact1<-afact3 %>%
+  select(Continent,country,Population,GDP.PPP,GDP.PPP.Per.Capita....) %>%
+  arrange(desc(Population))
+
+hc <- highchart() %>% 
+  hc_xAxis(categories = fact1$country) %>% 
+  hc_add_series(name = "Per Capita", data = fact1$GDP.PPP.Per.Capita....)
+hc <- hc %>% 
+  hc_chart(type = "column",
+           options3d = list(enabled = TRUE, beta = 15, alpha = 15))
+hc %>% hc_add_theme(hc_theme_darkunica())
+```
+
+
+
+
+## Challenges faced
+
+The population data was so widely spread out and so positively skewed that normalization did not yield the desired results. Even after normalizing, the population values was not adequately distributed as some countries in Asia had their population in trillions like China whereas Maldives had population around four hundred thousand. I could have used the log function but it did not give me the desired results of the values in the interactive graph, so I used treemaps instead of barplots and scatterplots which displayed the result very effectively.<br><br>
+
+Moreover, the population is used for calculating the GDP per Capita of a country but it has a negative relationship with GDP Per Capita, this is displayed in the plots above which clearly shows that the GDP per Capita is not effected by the population, although we divide it to derive the GDP Per Capita.Since the population was not effecting the GDP per Capita it was not included in the report.<br><br>
+
+Growth Rate was another important variable which would have made a big impact on the GDP and the GDP Per Capita with a time series graph but since the data was for 1 year I was unable to show how it has a positive impact and relationship with GDP and GDP Per capita.<br><br>
+
+Majority of the interactive graphs were done by using Highcharter library and I had many challenging issues as we wanted our work to be different from other groups.So, it was decided by our team leader Inshal Khan (who was the driving force behind this entitre project and without whose guidance, I wouldn't have been able to learn new things) to make our project Simple, Elegant, Brief and Comprehensive.<br><br>
+
+
+
+
+
+## References
+
+http://jkunst.com/highcharter/
+
+https://davetang.org/muse/2018/05/15/making-a-heatmap-in-r-with-the-pheatmap-package/
+
+https://www.highcharts.com/blog/data-science/highcharts-for-r-users/
+
+
+
