@@ -1,6 +1,6 @@
 ---
 title: "Analyzing Factors Influencing GDP"
-# author: "Inshal Khan"
+# author: "Dilpa Rao"
 # date: "November 23, 2019"
 output: 
   flexdashboard::flex_dashboard:
