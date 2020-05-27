@@ -1,6 +1,6 @@
 ---
 title: "Analyzing Factors Influencing GDP"
-# author: "Dilpa Rao"
+# author: "Badar, Divya, Dilpa, Inshal, Shahzeb, Tayyab"
 # date: "November 23, 2019"
 output: 
   flexdashboard::flex_dashboard:
